@@ -1,5 +1,7 @@
 # ESP8266 开发经验
 2018-4-9 @davidliyutong
+## 简介
+一个可以用python控制的，基于HTTP请求的智能LED。
 ## 配置Arduino IDE
 #### 安装驱动
 - Windows 下即插即用
