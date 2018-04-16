@@ -1,7 +1,26 @@
 # ESP8266 开发经验
-2018-4-9 @davidliyutong
+2018-4-16 @davidliyutong
 ## 简介
-一个可以用python控制的，基于HTTP请求的智能LED。
+一个可以用python控制的，基于HTTP请求的智能锁。
+## 实现原理
+#### 服务器
+脚本 ```server.py``` 在一台计算机上创建一个Server。Sever共有三个页面```\on``` ```\off```和 ```\status.html```，存储一个锁的状态```status```（*1* 为开，*0* 为关）。其中```\on``` 和```\off```页面为操作页面。服务器监听到对这两个页面的请求就改变存储的锁状态```status```。当```\status.html```被请求，服务器返回字符“0”或“1”，表示其存储的锁的状态。  
+####ESP8266
+ESP8266在启动后进入 *Soft_AP* 模式。 这个模式下ESP8266工作为一个热点。ESP8266的地址，即路由地址默认为```192.168.4.1```。
+
+在这个模式下ESP8266等待客户端的连入，并接受客户端```setup.py```发送的Wi-Fi配置（ssid 和 password）、request_url请求地址。```setup.py```脚本以 HTTP GET 的形式发送这三个参数。这三个参数在请求的地址中体现，用“=”分割，如：
+
+    http://192.168.4.1/ssid_custome=password_custome=request_url
+
+其中，```request_url```为Server的域名（或IP地址）+ 返回状态的地址  
+（比如 http://example.com/status.html）
+
+ESP8266 收到配置后（若ssid_custome长度大于0）转为 *Station* 模式。这个模式下ESP8266工作为一个终端。它会尝试根据```setup.py```发送的ssid和password尝试连接到无线基站。
+
+连接成功后，ESP8266向给定的request_url以一秒的间隔请求锁的状态。若得到“1”则将LED引脚置高，若得到”0”则置低。这里用LED模拟锁
+#### 客户端
+客户端```command.py```获得用户的命令。根据命令```command.py```以 HTTP GET 的方式请求Server的```\on``` 和```\off```页面。
+
 ## 配置Arduino IDE
 #### 安装驱动
 - Windows 下即插即用
@@ -39,3 +58,18 @@
 ## 小技巧
 - Arduino 事例有现成的Example可以实验，大部分只需要修改Wifi 的```SSID```和```PSK```  
 - 可以用导线，开关和面包版快速复位，实现快速转换模式，从而免去插拔USB
+
+## 改进
+- python编程直接发送请求效率低下，难以维护。考虑换用更高效的Web框架和语言，比如apache，php
+- HTTP连接很不安全，考虑换用HTTPS连接。需要配置证书
+- 当前，ESP8266 在断电后会丢失配置信息。可以加入配置保存功能，利用提供的文件操作函数将配置保存在闪存上。
+- 在程序中加入判断功能，如果为能连接到Wi-Fi或服务器提示重连。
+- 加入硬件复位键，一键复位，清除存储的配置信息
+- 每秒向服务器发送一次GET请求对服务器是很大的负担。考虑：
+  - 与服务器握手发送自身IP地址，然后监听服务器发送的指令，困难在于如何穿过网关
+  - P2P连接
+  - 使用别的物联网技术，如MQTT
+  - TCP长连接
+  -   ...
+- 服务器没有任何的认证措施，考虑加入一些验证
+- 这个智能锁能够顺利的接入homebridge，实现用siri控制灯。[rudders/homebridge-http]() 这里提供了一个解决方案。homebrdige 配置文件里的```status_on```和```status_off```填写服务器的两个操作地址```\on``` 和 ```\off```
